@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="四达传媒智能编单系统：频道任务、Agent 协作、人工交接与优化反馈的单屏演示看板。全部任务为虚构数据。">
+  <title>四达传媒智能编单系统 · 运行总览</title>
+  <link rel="icon" href="assets/jinshu-mark.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="model.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+<div id="screen-shell"><main id="dashboard" class="dashboard">
+  <header class="masthead">
+    <div class="corporate"><img src="assets/startimes-logo.png" alt="StarTimes" id="corporate-logo"><span id="corporate-fallback" hidden>StarTimes</span><small>四达传媒</small></div>
+    <div class="brand-divider"></div>
+    <img class="system-mark" src="assets/jinshu-mark.png" alt="锦书系统标识">
+    <div class="brand"><h1>四达传媒智能编单系统</h1><div class="brand-caption">智能编单运行总览 <span>JINSHU</span><b>v0.1 · 演示版</b></div></div>
+    <div class="header-meta"><span class="demo-label">演示数据</span><span class="connection" id="connection"><i></i>模拟数据已连接</span></div>
+    <div class="clock"><time id="clock">--:--:--</time><div id="date">--</div></div>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换到浅色主题" title="切换深浅主题">☀</button>
+  </header>
+  <section class="overview" aria-label="今日工作概览" id="overview"></section>
+  <div class="workspace">
+    <section class="panel flow-panel">
+      <div class="panel-heading"><div><span class="eyebrow">LIVE WORKFLOW</span><h2>编单协作工作流 <span class="live-tag">实时流转</span></h2></div><span class="subtle">共享 Agent · 人工交接 · 系统接收</span></div>
+      <div class="flow-surface">
+        <div id="team" class="flow-stack" aria-label="从 EPG 到 Playbox 的工作流"></div>
+        <aside class="flow-rail">
+          <div class="rail-intro"><span class="rail-line"></span><b>一份编单<br>一次有序交接</b><p>任务随执行结果<br>进入下一节点</p></div>
+          <div class="handoff-card"><span class="eyebrow">LATEST HANDOVER</span><h3>最新流转</h3><div id="handoff-event"></div></div>
+          <div class="feedback-branch"><div class="branch-symbol">↳</div><span class="eyebrow">OPTIMIZATION LOOP</span><h3>回读与对比</h3><p id="branch-stats"></p><span class="branch-note">交付后独立进行<br>为 Agent 优化积累反馈</span></div>
+          <div class="rail-end">Playbox 接收即完成交付<br>回读与对比不阻塞交付</div>
+        </aside>
+      </div>
+      <div class="flow-foot"><span class="legend"><i class="legend-dot running"></i>Agent 执行 <i class="legend-dot human"></i>编单员处理 <i class="legend-dot done"></i>Playbox 已接收</span><span>节点分工为演示设定</span></div>
+    </section>
+    <section class="panel channel-panel">
+      <div class="panel-heading"><div><span class="eyebrow">CHANNEL OPERATIONS</span><h2>今日频道任务 <span id="channel-count"></span></h2></div><div class="board-meta"><span id="work-date"></span><span class="legend"><i class="legend-dot done"></i>已交付 <i class="legend-dot running"></i>执行中 <i class="legend-dot attention"></i>需关注</span></div></div>
+      <div id="channel-grid" class="channel-grid" aria-label="全部频道与编单任务"></div>
+      <div class="board-foot"><span>工作日期与播出日期分别记录 · 每份编单覆盖播出日 00:00—24:00</span><span>交付终点：<b>Playbox 已接收</b></span></div>
+    </section>
+  </div>
+  <section class="bottom-row" aria-label="前两天与优化反馈">
+    <section class="panel attention-panel"><div class="panel-heading"><h2><span class="attention-icon">!</span>需关注</h2><span class="attention-count" id="attention-count"></span></div><div id="attention-list" class="attention-list"></div><div class="attention-foot">完整状态同步标注在对应频道 · 无声音提醒</div></section>
+    <div class="panel history-panel"><div class="panel-heading"><div><span class="eyebrow">PREVIOUS TWO DAYS</span><h2>前两天工作回顾</h2></div><span class="subtle">按工作日期统计 · 遗留持续跟进</span></div><div class="history-grid" id="history"></div></div>
+    <div class="panel feedback-panel"><div class="panel-heading"><div><span class="eyebrow">AGENT IMPROVEMENT</span><h2>回读与优化反馈</h2></div><span class="subtle">近三天 · 不影响交付完成</span></div><div id="feedback"></div></div>
+  </section>
+  <footer class="footer"><span><i></i>全部频道与任务均为虚构 · 首批 Playbox 展示范围</span><span id="latest-event">正在载入模拟任务记录</span><span id="updated">最近更新 --:--:--</span></footer>
+</main></div>
+<noscript>请启用 JavaScript 以显示实时任务看板。此页面仅使用虚构演示数据。</noscript>
+</body>
+</html>
