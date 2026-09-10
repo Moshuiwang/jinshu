@@ -22,3 +22,5 @@ jobs:
           persist-credentials: false
       - name: 检查资料边界、冲突标记与文档链接
         run: python3 scripts/check_repository.py
+      - name: 验证演示看板的日期、任务与交付统计
+        run: node --test tests/dashboard-model.test.cjs

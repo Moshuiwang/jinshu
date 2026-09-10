@@ -28,5 +28,7 @@ node_modules/
 .ruff_cache/
 coverage/
 dist/
+!/src/dashboard/dist/
+!/src/dashboard/dist/**
 build/
 *.log
