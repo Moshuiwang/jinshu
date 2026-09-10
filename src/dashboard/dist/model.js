@@ -2,128 +2,124 @@
   'use strict';
   const DAY = 86400000;
   const STAGES = [
-    { id: 'epg', label: 'EPG 接收', short: '接收 EPG', progress: 8 },
-    { id: 'match', label: '素材匹配', short: '素材匹配中', progress: 26 },
-    { id: 'arrange', label: '智能编排', short: '智能编排中', progress: 48 },
-    { id: 'check', label: '检查与产出', short: '检查与产出', progress: 68 },
-    { id: 'waiting', label: '待编单员接手', short: '待编单员接手', progress: 78 },
-    { id: 'human', label: '编单员处理中', short: '编单员处理中', progress: 88 },
-    { id: 'accepted', label: 'Playbox 已接收', short: 'Playbox 已接收', progress: 100 }
+    {id:'epg',label:'EPG 接收'}, {id:'match',label:'素材匹配'},
+    {id:'arrange',label:'智能编排'}, {id:'check',label:'检查产出'},
+    {id:'human',label:'编单员'}, {id:'playbox',label:'Playbox 已接收'}
   ];
-  const CHANNEL_NAMES = ['星光动画','环球影院','都市剧场','生活时尚','非洲故事','世界纪实','快乐少儿','经典剧场','家庭影院','文化视野','音乐现场','自然探索','东方故事','青春剧场','风尚生活','旅行世界','星光综艺','人文记录','成长天地','经典影院'];
-  const STAGE_BY_ID = Object.fromEntries(STAGES.map(s => [s.id, s]));
-  function dayKey(time) {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(time));
-  }
-  function startOfDay(key) { return Date.parse(key + 'T00:00:00+08:00'); }
-  function offsetDay(key, offset) { return dayKey(startOfDay(key) + offset * DAY); }
-  function deadlineFor(broadcastDate) { return startOfDay(broadcastDate) - DAY; }
-  function duration(ms) {
-    const mins = Math.max(0, Math.floor(ms / 60000));
-    if (mins >= 1440) return Math.floor(mins / 1440) + '天' + Math.floor(mins % 1440 / 60) + '时';
-    if (mins >= 60) return Math.floor(mins / 60) + '时' + mins % 60 + '分';
-    return mins + '分';
-  }
-  function seed(now = Date.now(), count = 20) {
-    const today = dayKey(now);
-    const channels = Array.from({ length: count }, (_, i) => ({ id: i + 1, name: CHANNEL_NAMES[i] || '演示频道 ' + String(i + 1).padStart(2, '0') }));
-    const tasks = [];
-    function make(channel, workDate, broadcastDate, stage, suffix, options = {}) {
-      const deadline = deadlineFor(broadcastDate);
-      const sameDay = workDate === today;
-      const createdAt = sameDay ? Math.max(startOfDay(today), now - (35 + channel.id * 4) * 60000) : startOfDay(workDate) + 8 * 3600000;
-      const acceptedAt = stage === 'accepted' ? (sameDay ? Math.max(createdAt, now - (channel.id + 1) * 60000) : startOfDay(workDate) + (10 + channel.id % 5) * 3600000) : null;
-      const task = {
-        id: workDate + ':' + channel.id + ':' + suffix, channelId: channel.id, workDate, broadcastDate,
-        deadline, createdAt, stage, stageSince: sameDay ? Math.max(createdAt, now - (2 + channel.id % 12) * 60000) : createdAt,
-        acceptedAt, outputAt: ['waiting', 'human', 'accepted'].includes(stage) ? Math.min(acceptedAt || now, createdAt + (5 + channel.id % 8) * 60000) : null,
-        blocked: null, feedback: stage === 'accepted' ? (channel.id % 5 === 0 ? 'waiting' : 'compared') : 'ineligible',
-        hasDifference: stage === 'accepted' && channel.id % 7 === 0,
-        ...options
-      };
-      tasks.push(task);
-      return task;
-    }
-    const cycle = ['arrange', 'match', 'check', 'human', 'accepted', 'accepted', 'waiting', 'accepted', 'arrange', 'accepted', 'epg', 'accepted', 'human', 'match', 'accepted', 'check', 'accepted', 'waiting', 'human', 'accepted'];
-    channels.forEach((c, i) => make(c, today, offsetDay(today, 2), cycle[i % cycle.length], 'main', i === 1 ? { blocked: '素材缺失', stageSince: now - 42 * 60000 } : {}));
-    [3, 8, 13, 18].filter(id => id <= count).forEach((id, i) => make(channels[id - 1], today, offsetDay(today, i === 0 ? 1 : 3), ['human', 'match', 'epg', 'check'][i], 'extra', i === 0 ? { blocked: '待编单员交付', stageSince: now - 76 * 60000 } : {}));
-    for (const offset of [-1, -2]) {
-      channels.forEach(c => {
-        const carry = c.id === (offset === -1 ? 1 : 6);
-        make(c, offsetDay(today, offset), offsetDay(today, offset + 2), carry ? 'check' : 'accepted', 'history', carry ? { blocked: offset === -1 ? '编排冲突' : '检查未通过' } : {});
-      });
-    }
-    return { today, channels, tasks, updatedAt: now, sequence: 0, latest: '已载入今日频道任务与前两天记录', changedTask: null, lastTransition: null };
-  }
-  function isDone(t) { return t.stage === 'accepted' && Number.isFinite(t.acceptedAt); }
-  function isOverdue(t, now) { return !isDone(t) && now >= t.deadline; }
-  function isCarry(t, today) { return t.workDate < today && !isDone(t); }
-  function isAttention(t, now) { return Boolean(t.blocked) || isOverdue(t, now) || (!isDone(t) && t.deadline - now <= 4 * 3600000); }
-  function visibleTasks(state) { return state.tasks.filter(t => t.workDate === state.today || isCarry(t, state.today)); }
-  function priority(t, state, now) { return isOverdue(t, now) ? 100 : t.blocked ? 80 : isCarry(t, state.today) ? 70 : isAttention(t, now) ? 60 : isDone(t) ? 0 : 20; }
-  function recentTasks(state) { return state.tasks.filter(t => t.workDate >= offsetDay(state.today, -2)); }
-  function feedbackStats(tasks) {
-    const eligible = tasks.filter(isDone);
-    const compared = eligible.filter(t => t.feedback === 'compared');
-    return { eligible: eligible.length, compared: compared.length, reading: eligible.filter(t => t.feedback === 'reading').length, waiting: eligible.filter(t => t.feedback === 'waiting').length, differences: compared.filter(t => t.hasDifference).length };
-  }
-  function summary(state, now) {
-    const today = state.tasks.filter(t => t.workDate === state.today);
-    const visible = visibleTasks(state);
-    const accepted = today.filter(isDone);
+  const STATES = ['unused','passed','warning','rollback','processing','fault'];
+  const NAMES = ['星光动画','环球影院','都市剧场','生活时尚','非洲故事','世界纪实','快乐少儿','经典剧场','家庭影院','文化视野','音乐现场','自然探索','东方故事','青春剧场','风尚生活','旅行世界','星光综艺','人文记录','成长天地','经典影院'];
+  function dayKey(time) { return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(time)); }
+  function startOfDay(key) { return Date.parse(key+'T00:00:00+08:00'); }
+  function offsetDay(key,offset) { return dayKey(startOfDay(key)+offset*DAY); }
+  function deadlineFor(date) { return startOfDay(date)-DAY; }
+  function number(id) { return String(id).padStart(3,'0'); }
+  function color(id) { return `hsl(${208+((id-1)%20)*3.8} 62% 48%)`; }
+  function newTask(channelId,broadcastDate,now,cursor=0,status='waiting') {
     return {
-      total: today.length, accepted: accepted.length,
-      automatic: today.filter(t => ['epg', 'match', 'arrange', 'check'].includes(t.stage)).length,
-      waiting: today.filter(t => t.stage === 'waiting').length,
-      human: today.filter(t => t.stage === 'human').length,
-      attention: visible.filter(t => isAttention(t, now)).length,
-      carry: visible.filter(t => isCarry(t, state.today)).length,
-      onTime: accepted.filter(t => t.acceptedAt <= t.deadline).length,
-      feedback: feedbackStats(recentTasks(state))
+      id:broadcastDate+':'+number(channelId),channelId,broadcastDate,
+      workDate:dayKey(now),createdAt:now-((channelId%9)+3)*60000,
+      deadline:deadlineFor(broadcastDate),cursor,status,returnFrom:null,
+      slots:STAGES.map((_,index)=>index<cursor?'passed':index===cursor&&status==='running'?'processing':'unused'),
+      stageSince:now-(channelId%6)*60000,outputAt:cursor>=4?now-60000:null,
+      acceptedAt:null,feedback:'ineligible',difference:false,warnings:[],events:[]
     };
   }
-  function history(state, offset) {
-    const date = offsetDay(state.today, offset);
-    const list = state.tasks.filter(t => t.workDate === date);
-    const delivered = list.filter(isDone);
-    const produced = list.filter(t => t.outputAt != null);
-    const average = produced.length ? produced.reduce((sum, t) => sum + Math.max(0, t.outputAt - t.createdAt), 0) / produced.length : null;
-    return { date, total: list.length, accepted: delivered.length, remaining: list.length - delivered.length, average, feedback: feedbackStats(list) };
+  function isDone(task) { return task.status==='accepted'&&Number.isFinite(task.acceptedAt)&&task.slots[5]==='passed'; }
+  function isOverdue(task,now) { return !isDone(task)&&now>=task.deadline; }
+  function taskById(state,id) { return state.tasks.find(task=>task.id===id); }
+  function applyEvent(task,event,now) {
+    const next={...task,slots:[...task.slots],warnings:[...task.warnings],events:[...task.events]};
+    function finish() { next.events.push({type:event.type,at:now,stage:next.cursor});next.stageSince=now;return next; }
+    if(event.type==='start'&&task.status==='waiting') { next.status='running';next.slots[next.cursor]='processing';return finish(); }
+    if(event.type==='complete'&&task.status==='running') {
+      const index=task.cursor;
+      if(event.warning&&index===5) throw new Error('Playbox接收须有明确成功结果，不能以警告代替');
+      next.slots[index]=event.warning?'warning':'passed';
+      if(event.warning) next.warnings.push(index);
+      if(index===3) next.outputAt=now;
+      if(index===5) { next.status='accepted';next.acceptedAt=now;next.feedback='waiting'; }
+      else { next.cursor=index+1;next.status=next.cursor===4?'waiting':'running';if(next.status==='running') next.slots[next.cursor]='processing'; }
+      return finish();
+    }
+    if(event.type==='fault'&&task.status==='running') { next.slots[next.cursor]='fault';next.status='fault';return finish(); }
+    if(event.type==='rollback'&&task.status==='fault'&&task.cursor>0) {
+      const failed=task.cursor;next.slots[failed]='rollback';next.cursor=failed-1;
+      next.slots[next.cursor]='processing';next.status='returned';next.returnFrom=failed;
+      // Rework at or before validation invalidates the previous generated output.
+      if(next.cursor<=3) next.outputAt=null;
+      return finish();
+    }
+    if(event.type==='retry'&&['fault','returned'].includes(task.status)) {
+      next.status='running';next.returnFrom=null;next.slots[next.cursor]='processing';return finish();
+    }
+    if(event.type==='readback'&&isDone(task)&&task.feedback==='waiting') {next.feedback='reading';return finish();}
+    if(event.type==='compare'&&isDone(task)&&task.feedback==='reading') {next.feedback='compared';next.difference=Boolean(event.difference);return finish();}
+    throw new Error('当前任务状态不允许该事件：'+task.status+' / '+event.type);
   }
-  function advance(state, now) {
-    if (dayKey(now) !== state.today) {
-      const fresh = seed(now, state.channels.length);
-      const retained = state.tasks.filter(t => !isDone(t) || t.workDate >= offsetDay(fresh.today, -2));
-      fresh.tasks = [...retained, ...fresh.tasks.filter(t => t.workDate === fresh.today && !retained.some(old => old.id === t.id))];
-      fresh.latest = '新工作日已开始 · 未完成任务继续保留';
-      return fresh;
+  function acceptedTask(id,date,now) {
+    const task=newTask(id,date,now,5,'running');
+    const result=applyEvent(task,{type:'complete'},now-60000*(id%8+1));
+    result.createdAt=now-30*60000;result.outputAt=now-22*60000;
+    result.feedback=id%3===0?'waiting':'compared';result.difference=id%7===0;
+    return result;
+  }
+  function makeDay(date,relative,channels,now) {
+    return channels.map(channel=>{
+      const i=(channel.id-1)%20;
+      if(relative===0&&i>=3||relative===1&&i>=14) return acceptedTask(channel.id,date,now);
+      if(relative===2) return newTask(channel.id,date,now,i<4?0:i<7?1:0,i<7?'running':'waiting');
+      const cursors=[0,1,2,3,4,5,0,1,2,3,3,4,4,0];
+      let task=newTask(channel.id,date,now,cursors[i]||0,i===11||i===13?'waiting':'running');
+      if(i===7){task.slots[0]='warning';task.warnings=[0];}
+      if(i===9) task=applyEvent(task,{type:'fault'},now-90000);
+      if(i===10){task=applyEvent(task,{type:'fault'},now-95000);task=applyEvent(task,{type:'rollback'},now-80000);}
+      return task;
+    });
+  }
+  function seed(now=Date.now(),count=20) {
+    const today=dayKey(now);
+    const channels=Array.from({length:count},(_,i)=>({id:i+1,number:number(i+1),name:NAMES[i]||'演示频道 '+number(i+1),color:color(i+1)}));
+    return {today,channels,tasks:[0,1,2].flatMap(offset=>makeDay(offsetDay(today,offset),offset,channels,now)),updatedAt:now,sequence:0,latest:'模拟任务记录已就绪',changedTask:null};
+  }
+  function tasksForDate(state,date) { return state.tasks.filter(t=>t.broadcastDate===date); }
+  function feedbackStats(tasks) {
+    const accepted=tasks.filter(isDone);
+    return {eligible:accepted.length,compared:accepted.filter(t=>t.feedback==='compared').length,reading:accepted.filter(t=>t.feedback==='reading').length,waiting:accepted.filter(t=>t.feedback==='waiting').length,differences:accepted.filter(t=>t.feedback==='compared'&&t.difference).length};
+  }
+  function summary(state,date,now) {
+    const tasks=tasksForDate(state,date);
+    return {total:tasks.length,accepted:tasks.filter(isDone).length,overdue:tasks.filter(t=>isOverdue(t,now)).length,faults:tasks.filter(t=>t.status==='fault').length,returned:tasks.filter(t=>t.status==='returned').length,humanWaiting:tasks.filter(t=>t.cursor===4&&t.status==='waiting').length,humanWorking:tasks.filter(t=>t.cursor===4&&['running','returned'].includes(t.status)).length,feedback:feedbackStats(tasks)};
+  }
+  function connections(tasks) {
+    return tasks.flatMap(task=>{
+      if(task.status==='returned') return [{taskId:task.id,channelId:task.channelId,from:task.returnFrom,to:task.cursor,kind:'rollback',moving:true}];
+      if(task.cursor>0&&task.status==='running') return [{taskId:task.id,channelId:task.channelId,from:task.cursor-1,to:task.cursor,kind:'processing',moving:true}];
+      if(task.cursor>0&&task.status==='fault') return [{taskId:task.id,channelId:task.channelId,from:task.cursor-1,to:task.cursor,kind:'fault',moving:false}];
+      return [];
+    });
+  }
+  function rollover(state,now) {
+    const today=dayKey(now);if(today===state.today)return state;
+    // Retain every unfinished task. Existing day data is never regenerated.
+    const tasks=state.tasks.filter(t=>!isDone(t)||t.broadcastDate>=offsetDay(today,-2));
+    for(let offset=0;offset<3;offset++){
+      const date=offsetDay(today,offset);
+      if(!tasks.some(t=>t.broadcastDate===date))tasks.push(...makeDay(date,offset,state.channels,now));
     }
-    const next = { ...state, tasks: state.tasks.map(t => ({ ...t })), updatedAt: now, sequence: state.sequence + 1, changedTask: null, lastTransition: null };
-    const eligible = next.tasks.filter(t => t.workDate === next.today && !isDone(t) && !t.blocked);
-    if (next.sequence % 3 !== 0 && eligible.length) {
-      const t = eligible[(Math.floor(next.sequence / 2)) % eligible.length];
-      const stage = STAGES.findIndex(s => s.id === t.stage);
-      const from = STAGE_BY_ID[t.stage].label;
-      t.stage = STAGES[Math.min(stage + 1, STAGES.length - 1)].id;
-      next.lastTransition = { from, to: STAGE_BY_ID[t.stage].label };
-      t.stageSince = now;
-      if (t.stage === 'waiting') t.outputAt = now;
-      if (t.stage === 'accepted') { t.acceptedAt = now; t.feedback = 'waiting'; }
-      next.changedTask = t.id;
-      next.latest = next.channels.find(c => c.id === t.channelId).name + ' · ' + t.broadcastDate.slice(5).replace('-', '/') + ' 播出单 → ' + STAGE_BY_ID[t.stage].label;
-    } else {
-      const t = next.tasks.find(t => isDone(t) && ['waiting', 'reading'].includes(t.feedback));
-      if (t) {
-        t.feedback = t.feedback === 'waiting' ? 'reading' : 'compared';
-        next.lastTransition = { from: 'Playbox 已接收', to: t.feedback === 'reading' ? '回读与对比' : '优化反馈已记录' };
-        if (t.feedback === 'compared') t.hasDifference = t.channelId % 4 === 0;
-        next.changedTask = t.id;
-        next.latest = next.channels.find(c => c.id === t.channelId).name + ' · ' + (t.feedback === 'reading' ? '开始回读最终执行文件' : '已完成对比，反馈已记录');
-      } else next.latest = '正在等待需关注任务处理 · 交付记录与优化反馈持续保留';
-    }
+    return {...state,today,tasks,latest:'播出日期已更新，未完成任务记录保留'};
+  }
+  function advance(state,now,visibleDate) {
+    const base=rollover(state,now);
+    const next={...base,tasks:[...base.tasks],sequence:base.sequence+1,updatedAt:now,changedTask:null};
+    const date=visibleDate&&visibleDate>=base.today?visibleDate:offsetDay(base.today,1);
+    const candidates=tasksForDate(next,date).filter(t=>['running','waiting','returned'].includes(t.status));
+    let task,event;
+    if(next.sequence%3===0){task=tasksForDate(next,date).find(t=>isDone(t)&&['waiting','reading'].includes(t.feedback));if(task)event={type:task.feedback==='waiting'?'readback':'compare',difference:task.channelId%4===0};}
+    if(!task&&candidates.length){task=candidates[Math.floor(next.sequence/2)%candidates.length];event={type:task.status==='waiting'?'start':task.status==='returned'?'retry':'complete',warning:task.cursor===1&&task.channelId%7===0};}
+    if(task){const index=next.tasks.findIndex(t=>t.id===task.id);next.tasks[index]=applyEvent(task,event,now);next.changedTask=task.id;const name=next.channels.find(c=>c.id===task.channelId).name;const result=next.tasks[index];next.latest=number(task.channelId)+' '+name+' · '+(event.type==='readback'?'正在回读':event.type==='compare'?'对比已记录':isDone(result)?'Playbox 已接收':STAGES[result.cursor].label+(result.status==='waiting'?'待接手':'处理中'));}
+    else next.latest='等待任务更新 · 故障记录保留';
     return next;
   }
-  const api = { DAY, STAGES, STAGE_BY_ID, dayKey, startOfDay, offsetDay, deadlineFor, duration, seed, isDone, isOverdue, isCarry, isAttention, visibleTasks, priority, recentTasks, feedbackStats, summary, history, advance };
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else root.JinshuModel = api;
-})(typeof window !== 'undefined' ? window : globalThis);
+  const api={DAY,STAGES,STATES,dayKey,startOfDay,offsetDay,deadlineFor,number,color,newTask,isDone,isOverdue,taskById,applyEvent,seed,tasksForDate,feedbackStats,summary,connections,rollover,advance};
+  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.JinshuModel=api;
+})(typeof window!=='undefined'?window:globalThis);

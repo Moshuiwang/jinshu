@@ -1,105 +1,88 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const M = require('../src/dashboard/dist/model.js');
-const now = Date.parse('2026-09-10T14:00:00+08:00');
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const M=require('../src/dashboard/dist/model.js');
+const now=Date.parse('2026-09-10T14:00:00+08:00');
+const date='2026-09-11';
 
-test('播出日从 00:00 开始，截止点是前一天 00:00，跨月跨年均按北京时间计算', () => {
-  assert.equal(M.deadlineFor('2026-09-12'), Date.parse('2026-09-11T00:00:00+08:00'));
-  assert.equal(M.dayKey(Date.parse('2026-09-10T16:01:00Z')), '2026-09-11');
-  assert.equal(M.dayKey(M.deadlineFor('2027-01-01')), '2026-12-31');
-  assert.equal(M.dayKey(M.deadlineFor('2028-03-01')), '2028-02-29');
+test('播出日前一天零点为24小时截止，跨月跨年和时区正确',()=>{
+ assert.equal(M.deadlineFor('2026-09-12'),Date.parse('2026-09-11T00:00:00+08:00'));
+ assert.equal(M.dayKey(Date.parse('2026-09-10T16:01:00Z')),'2026-09-11');
+ assert.equal(M.dayKey(M.deadlineFor('2027-01-01')),'2026-12-31');
+ assert.equal(M.dayKey(M.deadlineFor('2028-03-01')),'2028-02-29');
 });
-
-test('工作日期与播出日期独立；一个频道可有多份任务；所有首批频道可见', () => {
-  const state = M.seed(now);
-  const visible = M.visibleTasks(state);
-  assert.equal(state.channels.length, 20);
-  assert.equal(new Set(visible.map(t => t.channelId)).size, 20);
-  assert.equal(new Set(state.tasks.map(t => t.id)).size, state.tasks.length);
-  assert.ok(state.channels.some(c => visible.filter(t => t.channelId === c.id).length > 1));
-  assert.ok(visible.some(t => t.workDate !== t.broadcastDate));
-  assert.equal(M.summary(state, now).total, 24);
+test('三日按播出日期独立，每日完整20频道、每个节点完整六态集合',()=>{
+ const s=M.seed(now);assert.equal(s.channels.length,20);assert.equal(s.tasks.length,60);
+ assert.equal(new Set(s.tasks.map(t=>t.id)).size,60);
+ for(const offset of [0,1,2]){const tasks=M.tasksForDate(s,M.offsetDay(s.today,offset));assert.equal(tasks.length,20);assert.equal(new Set(tasks.map(t=>t.channelId)).size,20);for(const t of tasks){assert.equal(t.slots.length,6);assert.ok(t.slots.every(v=>M.STATES.includes(v)));}}
+ assert.equal(s.channels[0].number,'001');assert.equal(s.channels[19].number,'020');
+ assert.equal(M.summary(s,date,now).accepted,6);
 });
-
-test('超时以截止点判断；上传、人工处理或只有状态名称不能冒充已接收', () => {
-  const t = { stage: 'human', acceptedAt: null, deadline: now, outputAt: now - 60000 };
-  assert.equal(M.isDone(t), false);
-  assert.equal(M.isOverdue(t, now - 1), false);
-  assert.equal(M.isOverdue(t, now), true);
-  assert.equal(M.isDone({ ...t, stage: 'accepted' }), false);
-  assert.equal(M.isDone({ ...t, stage: 'accepted', acceptedAt: now }), true);
+test('尚未走入的EPG槽位保持未使用，开始后才变成处理色',()=>{
+ const t=M.newTask(1,date,now);assert.deepEqual(t.slots,Array(6).fill('unused'));
+ const next=M.applyEvent(t,{type:'start'},now);assert.equal(next.slots[0],'processing');assert.equal(t.slots[0],'unused');
 });
-
-test('已交付任务从关注项移出，回读缺失仍保留待回读，不影响交付', () => {
-  const state = M.seed(now);
-  const carry = state.tasks.find(t => M.isCarry(t, state.today));
-  assert.ok(M.visibleTasks(state).includes(carry));
-  assert.ok(M.isAttention(carry, now));
-  carry.stage = 'accepted'; carry.acceptedAt = now; carry.blocked = null; carry.feedback = 'waiting';
-  assert.equal(M.isDone(carry), true);
-  assert.equal(M.isAttention(carry, now), false);
-  assert.equal(M.visibleTasks(state).includes(carry), false);
-  assert.equal(M.history(state, -1).remaining, 0);
-  assert.equal(M.feedbackStats([carry]).waiting, 1);
+test('正确完成保留通过环，下一步只有一个正在处理槽位',()=>{
+ const t=M.newTask(1,date,now,0,'running');const next=M.applyEvent(t,{type:'complete'},now);
+ assert.deepEqual(next.slots,['passed','processing','unused','unused','unused','unused']);assert.equal(next.cursor,1);
 });
-
-test('遗留不重复计入今日分母；今日状态数相加等于任务总数', () => {
-  const s = M.summary(M.seed(now), now);
-  assert.equal(s.accepted + s.automatic + s.waiting + s.human, s.total);
-  assert.equal(s.carry, 2);
-  assert.equal(s.attention, 4);
+test('带警告通过会记录警告，不阻止进入下一步',()=>{
+ const t=M.newTask(3,date,now,1,'running');const next=M.applyEvent(t,{type:'complete',warning:true},now);
+ assert.equal(next.slots[1],'warning');assert.equal(next.slots[2],'processing');assert.deepEqual(next.warnings,[1]);
 });
-
-test('对比分母仅为已交付任务；未回读不被统计为已对比或无差异', () => {
-  const result = M.feedbackStats([
-    { stage: 'accepted', acceptedAt: now, feedback: 'waiting', hasDifference: false },
-    { stage: 'accepted', acceptedAt: now, feedback: 'compared', hasDifference: true },
-    { stage: 'human', feedback: 'ineligible', hasDifference: false }
-  ]);
-  assert.deepEqual(result, { eligible: 2, compared: 1, reading: 0, waiting: 1, differences: 1 });
-  assert.deepEqual(M.feedbackStats([]), { eligible: 0, compared: 0, reading: 0, waiting: 0, differences: 0 });
+test('当前故障与回退故障区分，回退只返回相邻节点且清除失效产出',()=>{
+ let t=M.newTask(9,date,now,4,'running');assert.ok(t.outputAt);
+ t=M.applyEvent(t,{type:'fault'},now);assert.equal(t.slots[4],'fault');assert.equal(t.status,'fault');assert.equal(M.isDone(t),false);
+ const back=M.applyEvent(t,{type:'rollback'},now+1);assert.equal(back.slots[4],'rollback');assert.equal(back.slots[3],'processing');assert.equal(back.cursor,3);assert.equal(back.outputAt,null);
+ assert.deepEqual(M.connections([back]),[{taskId:t.id,channelId:9,from:4,to:3,kind:'rollback',moving:true}]);
+ const retry=M.applyEvent(back,{type:'retry'},now+2);assert.equal(retry.returnFrom,null);assert.equal(retry.slots[4],'rollback');
+ const forward=M.applyEvent(retry,{type:'complete'},now+3);assert.equal(forward.slots[3],'passed');assert.equal(forward.status,'waiting');
+ const human=M.applyEvent(forward,{type:'start'},now+4);assert.equal(human.slots[4],'processing');
 });
-
-test('模拟事件按流程推进并保持统计一致，不自动清除异常或伪造人工修复', () => {
-  let state = M.seed(now);
-  const blocked = state.tasks.filter(t => t.blocked).map(t => ({ id: t.id, stage: t.stage }));
-  for (let n = 1; n <= 400; n++) {
-    const next = M.advance(state, now + n * 12000);
-    const changed = next.tasks.filter((t, i) => t.stage !== state.tasks[i].stage);
-    assert.ok(changed.length <= 1);
-    for (const task of changed) {
-      const before = state.tasks.find(t => t.id === task.id);
-      assert.equal(M.STAGES.findIndex(s => s.id === task.stage), M.STAGES.findIndex(s => s.id === before.stage) + 1);
-    }
-    const s = M.summary(next, now + n * 12000);
-    assert.equal(s.accepted + s.automatic + s.waiting + s.human, s.total);
-    assert.equal(s.feedback.waiting + s.feedback.reading + s.feedback.compared, s.feedback.eligible);
-    for (const b of blocked) assert.equal(next.tasks.find(t => t.id === b.id).stage, b.stage);
-    state = next;
-  }
+test('首节点故障不能回退到不存在的节点，故障不能假装完成',()=>{
+ const t=M.applyEvent(M.newTask(1,date,now,0,'running'),{type:'fault'},now);
+ assert.throws(()=>M.applyEvent(t,{type:'rollback'},now));assert.throws(()=>M.applyEvent(t,{type:'complete'},now));assert.equal(M.connections([t]).length,0);
 });
-
-test('40 频道沿用相同数据结构，每频道与任务完整保留', () => {
-  const state = M.seed(now, 40);
-  assert.equal(state.channels.length, 40);
-  assert.equal(new Set(M.visibleTasks(state).map(t => t.channelId)).size, 40);
-  assert.equal(M.summary(state, now).total, 44);
+test('Output生成不等于人工已处理，人工开始必须有独立事件',()=>{
+ const t=M.applyEvent(M.newTask(1,date,now,3,'running'),{type:'complete'},now);
+ assert.equal(t.outputAt,now);assert.equal(t.cursor,4);assert.equal(t.status,'waiting');assert.equal(t.slots[4],'unused');assert.equal(M.isDone(t),false);
+ assert.equal(M.connections([t]).length,0);
+ const active=M.applyEvent(t,{type:'start'},now+1000);assert.equal(active.slots[4],'processing');assert.equal(M.connections([active])[0].to,4);
 });
-
-test('历史系统耗时截至 Output，人工交付等待不会计入系统编单耗时', () => {
-  const state = M.seed(now);
-  const before = M.history(state, -1).average;
-  state.tasks.filter(t => t.workDate === M.offsetDay(state.today, -1) && M.isDone(t)).forEach(t => { t.acceptedAt += 10 * 3600000; });
-  assert.equal(M.history(state, -1).average, before);
+test('最终接收必须有成功状态与接收时间，不能用上传或警告冒充',()=>{
+ const t=M.newTask(1,date,now,5,'running');assert.equal(M.isDone(t),false);assert.equal(M.isOverdue(t,now),true);
+ assert.throws(()=>M.applyEvent(t,{type:'complete',warning:true},now));
+ assert.equal(M.isDone({...t,status:'accepted'}),false);
+ const done=M.applyEvent(t,{type:'complete'},now);assert.equal(M.isDone(done),true);assert.equal(M.isOverdue(done,now),false);assert.equal(M.connections([done]).length,0);
 });
-
-test('跨午夜仍保留原任务与遗留状态，不将它们重置成新的演示任务', () => {
-  const state = M.seed(now);
-  const carried = state.tasks.find(t => t.workDate === '2026-09-08' && t.blocked);
-  const next = M.advance(state, Date.parse('2026-09-11T00:01:00+08:00'));
-  assert.equal(next.today, '2026-09-11');
-  assert.ok(next.tasks.some(t => t.id === carried.id && t.blocked === carried.blocked));
-  assert.ok(M.visibleTasks(next).some(t => t.id === carried.id));
-  assert.equal(M.recentTasks(next).some(t => t.id === carried.id), false);
-  assert.equal(new Set(next.tasks.map(t => t.id)).size, next.tasks.length);
+test('回读与对比仅适用于已接收任务，未知不算无差异，不影响交付',()=>{
+ const t=M.newTask(1,date,now,5,'running');assert.throws(()=>M.applyEvent(t,{type:'readback'},now));
+ const done=M.applyEvent(t,{type:'complete'},now);assert.equal(M.feedbackStats([done]).waiting,1);
+ const reading=M.applyEvent(done,{type:'readback'},now+1);const compared=M.applyEvent(reading,{type:'compare',difference:true},now+2);
+ assert.equal(M.isDone(compared),true);assert.equal(compared.acceptedAt,done.acceptedAt);
+ assert.deepEqual(M.feedbackStats([compared,t]),{eligible:1,compared:1,reading:0,waiting:0,differences:1});
+ assert.deepEqual(M.feedbackStats([]),{eligible:0,compared:0,reading:0,waiting:0,differences:0});
+});
+test('跨午夜保留原播出日的未完成任务，新日期不覆盖旧任务',()=>{
+ const s=M.seed(now),original=s.tasks.find(t=>t.broadcastDate===s.today&&!M.isDone(t));
+ const next=M.rollover(s,Date.parse('2026-09-11T00:01:00+08:00'));
+ assert.equal(next.today,'2026-09-11');assert.deepEqual(M.taskById(next,original.id),original);
+ for(const d of ['2026-09-11','2026-09-12','2026-09-13'])assert.equal(M.tasksForDate(next,d).length,20);
+ assert.equal(new Set(next.tasks.map(t=>t.id)).size,next.tasks.length);
+});
+test('所有流线只跨相邻节点且保留所属频道，故障线不移动',()=>{
+ const s=M.seed(now),tasks=M.tasksForDate(s,date),edges=M.connections(tasks);
+ assert.ok(edges.some(e=>e.kind==='rollback'));assert.ok(edges.some(e=>e.kind==='fault'));
+ for(const e of edges){assert.equal(Math.abs(e.from-e.to),1);assert.equal(M.taskById(s,e.taskId).channelId,e.channelId);assert.ok(e.from>=0&&e.to<=5);if(e.kind==='fault')assert.equal(e.moving,false);}
+});
+test('40频道复用状态结构，每播出日完整保留040及所有编号',()=>{
+ const s=M.seed(now,40);assert.equal(s.tasks.length,120);assert.equal(s.channels[39].number,'040');assert.equal(M.summary(s,date,now).total,40);
+});
+test('连续模拟事件保持单个活动槽位和统计守恒，不自动清除未获恢复事件的故障',()=>{
+ let s=M.seed(now);const fault=s.tasks.find(t=>t.broadcastDate===date&&t.status==='fault');
+ for(let i=1;i<=300;i++){
+  s=M.advance(s,now+i*8000,date);
+  for(const t of M.tasksForDate(s,date)){assert.ok(t.slots.filter(v=>v==='processing').length<=1);assert.ok(t.slots.every(v=>M.STATES.includes(v)));}
+  const stats=M.summary(s,date,now+i*8000);assert.equal(stats.total,20);assert.equal(stats.feedback.compared+stats.feedback.waiting+stats.feedback.reading,stats.accepted);
+  assert.equal(M.taskById(s,fault.id).status,'fault');
+ }
 });
