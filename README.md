@@ -16,12 +16,12 @@
 
 | 要看什么 | 入口 |
 |---|---|
-| 已确认外观、颜色和动效 | [大屏设计基线](docs/design/大屏设计基线.md) |
-| 日单、节点、Agent 工作、人机交接与统计需求 | [大屏驱动的状态协同需求](docs/product/02-大屏驱动的状态协同需求.md) |
-| 模块、代码目录、接口和数据库表 | [状态服务与数据库设计](docs/engineering/大屏状态服务与数据库设计.md) |
-| 网站依赖、离线包、内网部署与恢复 | [内网部署方案](deploy/README.md) |
+| 已确认外观、颜色和动效 | [大屏设计基线](docs/dashboard/02-视觉设计基线.md) |
+| 日单、节点、Agent 工作、人机交接与统计需求 | [大屏驱动的状态协同需求](docs/dashboard/01-大屏需求.md) |
+| 模块、代码目录、接口和数据库表 | [状态服务与数据库设计](docs/dashboard/03-工程与数据库设计.md) |
+| 网站依赖、离线包、内网部署与恢复 | [内网部署方案](docs/dashboard/04-内网部署方案.md) |
 
-方案经[联网开发核查](docs/research/07-大屏内网网站开发核查.md)补充浏览器恢复、权限、资源、离线包及备份要求。当前已实现静态演示；上述真实后台为设计方案，尚未建设。最终网页及真实供数全部在内网运行，不依赖外部托管、CDN 或云服务。
+方案经[联网开发核查](docs/dashboard/05-开发核查.md)补充浏览器恢复、权限、资源、离线包及备份要求。当前已实现静态演示；上述真实后台为设计方案，尚未建设。最终网页及真实供数全部在内网运行，不依赖外部托管、CDN 或云服务。
 
 ## 先看这两份
 
@@ -33,15 +33,15 @@
 | 目录 | 放什么 | Git 管理 |
 |---|---|---|
 | docs/product/ | 产品定位、范围和专项需求 | 是 |
-| docs/design/ | 已确认设计基线，链接唯一可运行原型 | 是 |
-| docs/engineering/ | 工程约定、模块接口与数据库设计 | 是 |
+| [docs/dashboard/](docs/dashboard/README.md) | 大屏独立模块：需求、视觉、工程、部署、核查和验收 | 是 |
+| docs/engineering/ | 项目通用工程与验收约定 | 是 |
 | docs/planning/ | 行动计划、验证计划、资料清单和当前决策台账 | 是 |
 | docs/research/ | 格式、Agent 和模型硬件调研；历史外部资料保留核验日期 | 是 |
 | [src/](src/README.md) | 程序入口；已有大屏，真实业务模块实施时建立 | 是 |
 | [scripts/](scripts/README.md) | 仓库检查及后续开发／实验辅助工具 | 是 |
 | [tests/](tests/README.md) | 自动验证；fixtures/ 只放构造或获准的小样 | 是 |
 | [config/](config/README.md) | 配置模板与规则；本机配置和预览记录分开 | 是，local/ 除外 |
-| [deploy/](deploy/README.md) | 内网部署、离线依赖与恢复方案；脚本随实现加入 | 是 |
+| [deploy/](deploy/README.md) | 后续部署脚本入口；大屏部署正文归 docs/dashboard/ | 是 |
 | data/production/ | 真实环境参考文件、素材信息及本批检查记录 | 否，仅保留本地 |
 | data/intermediate/、data/evaluations/ | 后续中间数据和模型评测数据，使用时创建 | 否 |
 | [models/](models/README.md) | 本地模型权重与缓存 | 否，说明文件除外 |
@@ -52,12 +52,12 @@
 
 ## 当前文档
 
-| 分类 | 文档 |
+| 模块 | 入口 |
 |---|---|
-| 产品 | [01 产品需求](docs/product/01-产品需求文档.md) · [02 状态协同需求](docs/product/02-大屏驱动的状态协同需求.md) |
-| 设计与工程 | [设计基线](docs/design/大屏设计基线.md) · [状态服务与数据库](docs/engineering/大屏状态服务与数据库设计.md) · [内网部署](deploy/README.md) |
-| 计划 | [02 验证计划](docs/planning/02-前期探索与验证计划.md) · [03 交接清单](docs/planning/03-传媒资料准备清单.md) · [07 决策与验证台账](docs/planning/07-产品决策与验证台账.md) · [08 行动计划](docs/planning/08-项目行动计划.md) |
-| 调研 | [04 操作路径](docs/research/04-PlayBox与Codex操作路径调研.md) · [05 Agent 载体](docs/research/05-Agent载体候选调研.md) · [06 模型与硬件](docs/research/06-本地模型硬件与双机热备调研.md) · [07 大屏开发核查](docs/research/07-大屏内网网站开发核查.md) |
+| 编单 Agent 与项目 | [产品需求](docs/product/01-产品需求文档.md) · [任务拆解](docs/product/03-编单动作与交接设计.md) · [模型评估](docs/planning/09-模型评估与本地选型.md) · [权限与密钥](docs/product/04-生产保护与权限密钥边界.md) |
+| 大屏独立模块 | [大屏文档目录](docs/dashboard/README.md)，集中需求、视觉、工程、部署、核查和验收 |
+| 共用计划与资料 | [行动计划](docs/planning/08-项目行动计划.md) · [验证计划](docs/planning/02-前期探索与验证计划.md) · [交接清单](docs/planning/03-传媒资料准备清单.md) · [台账](docs/planning/07-产品决策与验证台账.md) |
+| 全部文档及维护分工 | [文档总索引](docs/README.md) |
 
 已收真实资料从[data 索引](data/README.md)进入，再打开仅本机的生产资料入口。历史审核从[archive 索引](archive/README.md)进入，设计草稿与样式实验从[outputs 索引](outputs/README.md)进入。纯 Git 克隆带目录说明和正式文档，不带这些本地材料。
 
