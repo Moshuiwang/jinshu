@@ -1,0 +1,12 @@
+# 配合 main 的代码所有者审查生效；普通实现不要求额外全局人审。
+/AGENTS.md @Moshuiwang
+/docs/协作约定.md @Moshuiwang
+/docs/engineering/ @Moshuiwang
+/docs/product/ @Moshuiwang
+/docs/planning/02-前期探索与验证计划.md @Moshuiwang
+/docs/traces/README.md @Moshuiwang
+/docs/traces/**/合同.md @Moshuiwang
+/.github/CODEOWNERS @Moshuiwang
+/.github/workflows/ @Moshuiwang
+/scripts/check_repository.py @Moshuiwang
+/.gitignore @Moshuiwang

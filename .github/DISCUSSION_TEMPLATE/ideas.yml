@@ -1,0 +1,25 @@
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |
+        用于尚未确定的方向选择。有明确交付物的研究或实施请建 Issue。
+        决定形成后回写产品正文，需要执行时建立 Issue 并互链，再标为已回答或关闭。
+        这是公开仓库，请勿填写真实业务资料、内部地址或凭据。
+  - type: textarea
+    id: question
+    attributes:
+      label: 要决定什么
+      description: 一句话说明需要形成的决定。
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: 候选与用户影响
+      description: 写已知事实、取舍和未知项，不替产品负责人做判断。
+  - type: textarea
+    id: blocked
+    attributes:
+      label: 不决定会影响什么
+      description: 关联已有 Issue；没有被阻塞的工作就说明无需立即决定。
