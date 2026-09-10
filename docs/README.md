@@ -26,3 +26,12 @@ Issue 保存可关闭的工作和一次性证据，PR 保存实现与审查，Di
 执行工作进度放 Issue 或实际 Trace；台账只汇总产品能力与验证结论，行动计划只维护阶段顺序。后续决定替代旧决定时更新原文、保留来源，不留两份并行生效的规则。
 
 真实材料与详细运行结果继续按根目录 README 留在本地。公开正文只保存可公开摘要、样本代号和结论限制，不能把本地文件链接当成所有协作者都能访问的证据。
+
+## 本地目录与入口
+
+- 可运行程序：[src/](../src/README.md)；大屏的HTML、样式、脚本和Logo只维护一份。
+- 工具与验证：[scripts/](../scripts/README.md)、[tests/](../tests/README.md)及[构造样例](../tests/fixtures/README.md)。
+- 配置与交付：[config/](../config/README.md)、[deploy/](../deploy/README.md)；本机配置与临时预览记录在不入Git的 `config/local/`。
+- 本地材料：[data/](../data/README.md)、[outputs/](../outputs/README.md)、[archive/](../archive/README.md)、[models/](../models/README.md)。这些索引入Git，实际材料只留本地。
+
+历史图稿、审核快照和已收到的原件保持原路径，以索引标明用途，避免移动后破坏溯源链接。新增业务源码、数据库迁移及部署脚本按实施工作项建立；目录说明不表示对应后台已实现。纯Git克隆与当前本机的链接可用范围分别写清，不用本地预览地址充当正式内网地址。

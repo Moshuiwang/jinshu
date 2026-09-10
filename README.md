@@ -37,28 +37,29 @@
 | docs/engineering/ | 工程约定、模块接口与数据库设计 | 是 |
 | docs/planning/ | 行动计划、验证计划、资料清单和当前决策台账 | 是 |
 | docs/research/ | 格式、Agent 和模型硬件调研；历史外部资料保留核验日期 | 是 |
-| src/ | 业务实现：输入解析、素材匹配、编排和校验等；开发时再按模块细分 | 是 |
-| scripts/ | 信息提取、开发和实验辅助工具 | 是 |
-| tests/ | 自动验证；fixtures/ 仅放人工构造或已确认可纳入版本的微型样例 | 是 |
-| config/ | 可复现的配置模板、模型与规则配置；密钥和本机配置另存 | 是，local/ 除外 |
-| deploy/ | 内网部署、离线依赖、备份恢复方案；实现时加入安装配置和脚本 | 是 |
+| [src/](src/README.md) | 程序入口；已有大屏，真实业务模块实施时建立 | 是 |
+| [scripts/](scripts/README.md) | 仓库检查及后续开发／实验辅助工具 | 是 |
+| [tests/](tests/README.md) | 自动验证；fixtures/ 只放构造或获准的小样 | 是 |
+| [config/](config/README.md) | 配置模板与规则；本机配置和预览记录分开 | 是，local/ 除外 |
+| [deploy/](deploy/README.md) | 内网部署、离线依赖与恢复方案；脚本随实现加入 | 是 |
 | data/production/ | 真实环境参考文件、素材信息及本批检查记录 | 否，仅保留本地 |
 | data/intermediate/、data/evaluations/ | 后续中间数据和模型评测数据，使用时创建 | 否 |
-| models/ | 本地模型权重与缓存 | 否，说明文件除外 |
-| outputs/ | 按任务／批次存生成编单、运行日志和实验报告 | 否，说明文件除外 |
-| archive/reviews/ | 既有审核记录及历史文档快照 | 否，仅保留本地 |
+| [models/](models/README.md) | 本地模型权重与缓存 | 否，说明文件除外 |
+| [outputs/](outputs/README.md) | 按日期／任务留存图稿、样式实验、编单和运行报告 | 否，说明文件除外 |
+| [archive/](archive/README.md) | 既有审核记录及历史文档快照 | 否，说明文件除外 |
 
-根目录只放项目入口和工程配置，不堆放业务文件。空代码目录表示预留位置，不表示功能已实现。数据按系统、频道、日期／批次和用途区分；不覆盖原件，不把不同系统资料配对成同一任务。
+根目录只放项目入口和工程配置，不堆放业务文件。已有目录提供用途说明；`src/jinshu/`、`db/migrations/` 等规划目录在首次实际实现时建立，不创建空服务或空迁移冒充交付。数据按系统、频道、日期／批次和用途区分；不覆盖原件，不把不同系统资料配对成同一任务。
 
 ## 当前文档
 
 | 分类 | 文档 |
 |---|---|
-| 产品 | [01 产品需求](docs/product/01-产品需求文档.md) |
+| 产品 | [01 产品需求](docs/product/01-产品需求文档.md) · [02 状态协同需求](docs/product/02-大屏驱动的状态协同需求.md) |
+| 设计与工程 | [设计基线](docs/design/大屏设计基线.md) · [状态服务与数据库](docs/engineering/大屏状态服务与数据库设计.md) · [内网部署](deploy/README.md) |
 | 计划 | [02 验证计划](docs/planning/02-前期探索与验证计划.md) · [03 交接清单](docs/planning/03-传媒资料准备清单.md) · [07 决策与验证台账](docs/planning/07-产品决策与验证台账.md) · [08 行动计划](docs/planning/08-项目行动计划.md) |
-| 调研 | [04 操作路径](docs/research/04-PlayBox与Codex操作路径调研.md) · [05 Agent 载体](docs/research/05-Agent载体候选调研.md) · [06 模型与硬件](docs/research/06-本地模型硬件与双机热备调研.md) |
+| 调研 | [04 操作路径](docs/research/04-PlayBox与Codex操作路径调研.md) · [05 Agent 载体](docs/research/05-Agent载体候选调研.md) · [06 模型与硬件](docs/research/06-本地模型硬件与双机热备调研.md) · [07 大屏开发核查](docs/research/07-大屏内网网站开发核查.md) |
 
-已收真实资料从 [data/production/README.md](data/production/README.md) 进入；此链接在本机有效，纯 Git 克隆不会带入这些数据。历史记录见 [archive/README.md](archive/README.md)。
+已收真实资料从[data 索引](data/README.md)进入，再打开仅本机的生产资料入口。历史审核从[archive 索引](archive/README.md)进入，设计草稿与样式实验从[outputs 索引](outputs/README.md)进入。纯 Git 克隆带目录说明和正式文档，不带这些本地材料。
 
 ## 版本与数据边界
 
