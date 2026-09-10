@@ -40,9 +40,10 @@
     const byChannel=new Map(tasks.map(t=>[t.channelId,t]));
     const summary=M.summary(state,selected,Date.now());
     $('stages').innerHTML=M.STAGES.map((stage,si)=>{
-      const processing=tasks.filter(t=>t.slots[si]==='processing').length;
+      const processing=tasks.filter(t=>t.cursor===si&&t.status==='running'&&t.slots[si]==='processing').length;
+      const working=M.isAgentWorking(tasks,si);
       const caption=si===4?`${summary.humanWaiting} 待接手 · ${summary.humanWorking} 处理中`:si===5?'已接收后待执行':`共享 Agent · ${processing} 处理中`;
-      return `<section class="stage" data-stage="${stage.id}" aria-label="${stage.label}"><div class="stage-heading"><div class="stage-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${icons[si]}</svg></div><h3>${stage.label}</h3><small>${caption}</small></div><div class="slot-field">${state.channels.map((channel,index)=>{
+      return `<section class="stage ${working?'is-working':''}" data-stage="${stage.id}" data-working="${working}" aria-label="${stage.label}"><div class="stage-heading"><div class="stage-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${icons[si]}</svg></div><h3>${stage.label}</h3><small>${caption}</small></div><div class="slot-field">${state.channels.map((channel,index)=>{
         const point=coordinates(si,index),task=byChannel.get(channel.id),slotState=task?task.slots[si]:'unused';
         const label=channel.number+' '+channel.name+' · '+stage.label+' · '+stateNames[slotState];
         const dark=`hsl(${208+((channel.id-1)%20)*3.8} 62% 57%)`;
@@ -62,10 +63,11 @@
       const bend=(connection.channelId%2?1:-1)*6;
       const path=document.createElementNS(ns,'path');
       path.setAttribute('d',`M${start} ${a.y} C${start+dx*.35} ${a.y+bend} ${start+dx*.65} ${b.y-bend} ${end} ${b.y}`);
-      path.setAttribute('class','flow-path '+(connection.kind==='fault'?'fault':''));
+      path.setAttribute('class','flow-path '+connection.kind);
+      path.dataset.kind=connection.kind;
       path.dataset.channel=connection.channelId;path.dataset.from=connection.from;path.dataset.to=connection.to;path.dataset.fromChannel=connection.channelId;path.dataset.toChannel=connection.channelId;
-      const dark=document.documentElement.dataset.theme==='dark';
-      const color=connection.kind==='processing'?(dark?`hsl(${208+((connection.channelId-1)%20)*3.8} 62% 57%)`:M.color(connection.channelId)):'var(--red)';
+      const failed=['fault','rollback'].includes(connection.kind);
+      const color=failed?'var(--red)':connection.kind==='completed'?'var(--green)':M.color(connection.channelId);
       path.style.setProperty('--flow-color',color);svg.append(path);
       if(connection.moving){const dot=document.createElementNS(ns,'circle');dot.setAttribute('r','3.2');dot.setAttribute('class','flow-bead');dot.style.setProperty('--flow-color',color);dot.dataset.channel=connection.channelId;svg.append(dot);paths.push({path,dot,length:path.getTotalLength(),offset:connection.channelId*.047,speed:connection.kind==='rollback'?1.35:1});}
     }

@@ -90,12 +90,25 @@
     const tasks=tasksForDate(state,date);
     return {total:tasks.length,accepted:tasks.filter(isDone).length,overdue:tasks.filter(t=>isOverdue(t,now)).length,faults:tasks.filter(t=>t.status==='fault').length,returned:tasks.filter(t=>t.status==='returned').length,humanWaiting:tasks.filter(t=>t.cursor===4&&t.status==='waiting').length,humanWorking:tasks.filter(t=>t.cursor===4&&['running','returned'].includes(t.status)).length,feedback:feedbackStats(tasks)};
   }
+  function isAgentWorking(tasks,stage) {
+    return stage>=0&&stage<4&&tasks.some(task=>task.cursor===stage&&task.status==='running'&&task.slots[stage]==='processing');
+  }
   function connections(tasks) {
     return tasks.flatMap(task=>{
-      if(task.status==='returned') return [{taskId:task.id,channelId:task.channelId,from:task.returnFrom,to:task.cursor,kind:'rollback',moving:true}];
-      if(task.cursor>0&&task.status==='running') return [{taskId:task.id,channelId:task.channelId,from:task.cursor-1,to:task.cursor,kind:'processing',moving:true}];
-      if(task.cursor>0&&task.status==='fault') return [{taskId:task.id,channelId:task.channelId,from:task.cursor-1,to:task.cursor,kind:'fault',moving:false}];
-      return [];
+      const edges=[];
+      for(let to=1;to<STAGES.length;to++){
+        const slot=task.slots[to];
+        if(slot==='unused')continue;
+        let from=to-1,target=to,kind='completed',moving=false;
+        if(slot==='processing'&&task.cursor===to&&task.status==='running'){kind='processing';moving=true;}
+        else if(slot==='fault'){kind='fault';}
+        else if(slot==='rollback'){
+          if(task.status==='returned'&&task.returnFrom===to){from=to;target=task.cursor;kind='rollback';moving=true;}
+          else kind='fault';
+        }
+        edges.push({taskId:task.id,channelId:task.channelId,from,to:target,kind,moving});
+      }
+      return edges;
     });
   }
   function rollover(state,now) {
@@ -120,6 +133,6 @@
     else next.latest='等待任务更新 · 故障记录保留';
     return next;
   }
-  const api={DAY,STAGES,STATES,dayKey,startOfDay,offsetDay,deadlineFor,number,color,newTask,isDone,isOverdue,taskById,applyEvent,seed,tasksForDate,feedbackStats,summary,connections,rollover,advance};
+  const api={DAY,STAGES,STATES,dayKey,startOfDay,offsetDay,deadlineFor,number,color,newTask,isDone,isOverdue,taskById,applyEvent,seed,tasksForDate,feedbackStats,summary,isAgentWorking,connections,rollover,advance};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.JinshuModel=api;
 })(typeof window!=='undefined'?window:globalThis);

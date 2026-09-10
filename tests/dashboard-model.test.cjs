@@ -33,7 +33,7 @@ test('当前故障与回退故障区分，回退只返回相邻节点且清除�
  let t=M.newTask(9,date,now,4,'running');assert.ok(t.outputAt);
  t=M.applyEvent(t,{type:'fault'},now);assert.equal(t.slots[4],'fault');assert.equal(t.status,'fault');assert.equal(M.isDone(t),false);
  const back=M.applyEvent(t,{type:'rollback'},now+1);assert.equal(back.slots[4],'rollback');assert.equal(back.slots[3],'processing');assert.equal(back.cursor,3);assert.equal(back.outputAt,null);
- assert.deepEqual(M.connections([back]),[{taskId:t.id,channelId:9,from:4,to:3,kind:'rollback',moving:true}]);
+ assert.deepEqual(M.connections([back]).filter(e=>e.moving),[{taskId:t.id,channelId:9,from:4,to:3,kind:'rollback',moving:true}]);
  const retry=M.applyEvent(back,{type:'retry'},now+2);assert.equal(retry.returnFrom,null);assert.equal(retry.slots[4],'rollback');
  const forward=M.applyEvent(retry,{type:'complete'},now+3);assert.equal(forward.slots[3],'passed');assert.equal(forward.status,'waiting');
  const human=M.applyEvent(forward,{type:'start'},now+4);assert.equal(human.slots[4],'processing');
@@ -45,14 +45,15 @@ test('首节点故障不能回退到不存在的节点，故障不能假装完�
 test('Output生成不等于人工已处理，人工开始必须有独立事件',()=>{
  const t=M.applyEvent(M.newTask(1,date,now,3,'running'),{type:'complete'},now);
  assert.equal(t.outputAt,now);assert.equal(t.cursor,4);assert.equal(t.status,'waiting');assert.equal(t.slots[4],'unused');assert.equal(M.isDone(t),false);
- assert.equal(M.connections([t]).length,0);
- const active=M.applyEvent(t,{type:'start'},now+1000);assert.equal(active.slots[4],'processing');assert.equal(M.connections([active])[0].to,4);
+ assert.equal(M.connections([t]).filter(e=>e.moving).length,0);
+ assert.equal(M.connections([t]).filter(e=>e.kind==='completed').length,3);
+ const active=M.applyEvent(t,{type:'start'},now+1000);assert.equal(active.slots[4],'processing');assert.equal(M.connections([active]).find(e=>e.moving).to,4);
 });
 test('最终接收必须有成功状态与接收时间，不能用上传或警告冒充',()=>{
  const t=M.newTask(1,date,now,5,'running');assert.equal(M.isDone(t),false);assert.equal(M.isOverdue(t,now),true);
  assert.throws(()=>M.applyEvent(t,{type:'complete',warning:true},now));
  assert.equal(M.isDone({...t,status:'accepted'}),false);
- const done=M.applyEvent(t,{type:'complete'},now);assert.equal(M.isDone(done),true);assert.equal(M.isOverdue(done,now),false);assert.equal(M.connections([done]).length,0);
+ const done=M.applyEvent(t,{type:'complete'},now);assert.equal(M.isDone(done),true);assert.equal(M.isOverdue(done,now),false);assert.equal(M.connections([done]).length,5);assert.ok(M.connections([done]).every(e=>e.kind==='completed'&&!e.moving));
 });
 test('回读与对比仅适用于已接收任务，未知不算无差异，不影响交付',()=>{
  const t=M.newTask(1,date,now,5,'running');assert.throws(()=>M.applyEvent(t,{type:'readback'},now));
@@ -85,4 +86,28 @@ test('连续模拟事件保持单个活动槽位和统计守恒，不自动清�
   const stats=M.summary(s,date,now+i*8000);assert.equal(stats.total,20);assert.equal(stats.feedback.compared+stats.feedback.waiting+stats.feedback.reading,stats.accepted);
   assert.equal(M.taskById(s,fault.id).status,'fault');
  }
+});
+
+test('完成当前步骤后原连线保留且停止流动，仅新的处理段流动',()=>{
+ const t=M.newTask(8,date,now,1,'running');
+ const before=M.connections([t]);assert.equal(before.length,1);assert.equal(before[0].moving,true);
+ const next=M.applyEvent(t,{type:'complete'},now+1);const after=M.connections([next]);
+ assert.deepEqual(after.map(e=>[e.from,e.to,e.kind,e.moving]),[[0,1,'completed',false],[1,2,'processing',true]]);
+});
+test('告警通过的历史线归入已完成，故障和回退才使用故障分类',()=>{
+ const next=M.applyEvent(M.newTask(7,date,now,1,'running'),{type:'complete',warning:true},now);
+ assert.equal(next.slots[1],'warning');assert.equal(M.connections([next])[0].kind,'completed');
+});
+
+test('Agent微闪只由实际运行状态驱动，等待、回退途中与故障停留不触发',()=>{
+ let t=M.newTask(1,date,now,1,'running');assert.equal(M.isAgentWorking([t],1),true);assert.equal(M.isAgentWorking([t],0),false);
+ t=M.applyEvent(t,{type:'fault'},now);assert.equal(M.isAgentWorking([t],1),false);
+ t=M.applyEvent(t,{type:'rollback'},now);assert.equal(M.isAgentWorking([t],0),false);
+ t=M.applyEvent(t,{type:'retry'},now);assert.equal(M.isAgentWorking([t],0),true);
+ assert.equal(M.isAgentWorking([M.newTask(2,date,now,0,'waiting')],0),false);
+ assert.equal(M.isAgentWorking([M.newTask(3,date,now,4,'running')],4),false);
+});
+test('共享Agent同时有故障任务和正常运行任务时仍显示工作动效',()=>{
+ const running=M.newTask(1,date,now,2,'running');const faulty=M.applyEvent(M.newTask(2,date,now,2,'running'),{type:'fault'},now);
+ assert.equal(M.isAgentWorking([running,faulty],2),true);assert.equal(M.isAgentWorking([faulty],2),false);
 });
