@@ -1,0 +1,32 @@
+# Local production material, intermediate data, evaluations
+/data/*
+!/data/README.md
+# Local model weights and generated output
+/models/*
+!/models/README.md
+/outputs/*
+!/outputs/README.md
+# Historical snapshots may include production-derived records
+/archive/*
+!/archive/README.md
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+/config/local/
+# Runtime and tooling
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+dist/
+build/
+*.log
