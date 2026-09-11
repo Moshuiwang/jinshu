@@ -15,7 +15,7 @@
 ## 先看这两份
 
 - [项目行动计划](docs/planning/08-项目行动计划.md)：说明当前评估顺序及进入采购、部署和试运行的条件。
-- [调研报告及资料准备附录](docs/research/09-传媒项目立项前调研与基础分析报告.md)：直接提供现成资料，项目侧先整理；Playbox 与大洋按本轮用途分别准备。
+- [传媒调研报告](docs/research/09-传媒项目立项前调研与基础分析报告.md)：直接提供现成资料，项目侧先整理；Playbox 与大洋按本轮用途分别准备。
 
 ## 目录规划
 
@@ -45,7 +45,7 @@
 |---|---|
 | 编单 Agent 与项目 | [产品需求](docs/product/01-产品需求文档.md) · [任务拆解](docs/product/03-编单动作与交接设计.md) · [模型评估](docs/planning/09-模型评估与本地选型.md) · [权限与密钥](docs/product/04-生产保护与权限密钥边界.md) |
 | 大屏独立模块 | [大屏文档目录](docs/dashboard/README.md)，集中需求、视觉、工程、部署、核查和验收 |
-| 共用计划与资料 | [行动计划](docs/planning/08-项目行动计划.md) · [验证计划](docs/planning/02-前期探索与验证计划.md) · [调研报告及资料准备附录](docs/research/09-传媒项目立项前调研与基础分析报告.md) · [台账](docs/planning/07-产品决策与验证台账.md) |
+| 共用计划与资料 | [行动计划](docs/planning/08-项目行动计划.md) · [验证计划](docs/planning/02-前期探索与验证计划.md) · [传媒调研报告](docs/research/09-传媒项目立项前调研与基础分析报告.md) · [台账](docs/planning/07-产品决策与验证台账.md) |
 | 全部文档及维护分工 | [文档总索引](docs/README.md) |
 
 已收真实资料从[data 索引](data/README.md)进入，再打开仅本机的生产资料入口。历史审核从[archive 索引](archive/README.md)进入，设计草稿与样式实验从[outputs 索引](outputs/README.md)进入。纯 Git 克隆带目录说明和正式文档，不带这些本地材料。
